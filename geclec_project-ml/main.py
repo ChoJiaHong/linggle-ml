@@ -29,7 +29,7 @@ CORRECT_TEXT_TASK_NAME = "geclec_project-ml.correct_text"
 TRANSLATE_TASK_NAME = "geclec_project-ml.translate_zh_to_en"
 
 app = FastAPI(root_path="/ml")
-FastAPIInstrumentor.instrument_app(app)
+FastAPIInstrumentor.instrument_app(app, excluded_urls="healthz")
 
 
 auth.firebase_init()
