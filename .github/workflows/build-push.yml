@@ -1,0 +1,55 @@
+name: Build and push images
+
+# 只在 push 到 main 時自動跑，另外保留 workflow_dispatch 方便手動觸發測試。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # api/worker 是 Dockerfile 的兩個 multi-stage target，各自獨立成一個
+  # job，可以平行跑，不用等對方。
+  build-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: api
+          push: true
+          # tag 用完整 git commit SHA，不是手動編號——任何一個 image 都能
+          # 反查回是哪一次 commit build 出來的。
+          tags: hiro08081/linggle-ml:api-${{ github.sha }}
+          # BuildKit 的 registry cache：cache 存在 Docker Hub 上，不是只
+          # 存在某一台 CI runner 本機——GitHub Actions 每次都是全新的
+          # runner，沒有這個機制的話，每次都要重新下載完整套件。
+          cache-from: type=registry,ref=hiro08081/linggle-ml:api-buildcache
+          cache-to: type=registry,ref=hiro08081/linggle-ml:api-buildcache,mode=max
+
+  build-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: worker
+          push: true
+          tags: hiro08081/linggle-ml:worker-${{ github.sha }}
+          # requirements-ml.txt（torch/transformers，2GB+）在 Dockerfile
+          # 裡已經跟 app code COPY 分層，只要這個 cache 命中，CI 上 build
+          # worker image 不用每次重新下載 2GB，只有真的改了
+          # requirements-ml.txt 才會重跑那一層。
+          cache-from: type=registry,ref=hiro08081/linggle-ml:worker-buildcache
+          cache-to: type=registry,ref=hiro08081/linggle-ml:worker-buildcache,mode=max

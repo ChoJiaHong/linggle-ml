@@ -1,0 +1,8 @@
+--find-links https://download.pytorch.org/whl/torch_stable.html
+# 一般 PyPI 上的 torch==1.12.0 只編到 sm_70（Volta）為止，workgpu 的
+# RTX 3060 是 Ampere（sm_86），實測會噴 "no kernel image is available for
+# execution on the device"——+cu113 這個 build 才有把 sm_86 編進去。
+torch==1.12.0+cu113
+transformers==4.20.1
+nltk==3.7
+sentencepiece
